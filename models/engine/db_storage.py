@@ -51,6 +51,22 @@ class DBStorage:
                     new_dict[key] = obj
         return (new_dict)
 
+    def get(self, cls, id):
+        """Retrieves one object based on class name and id."""
+        objs = {}
+        key = ""
+        if cls in classes.values() and type(id) == str:
+            key = "{}.{}".format(cls.__name__, id)
+            objs = self.all(cls)
+        return objs.get(key, None)
+
+    def count(self, cls=None):
+        """Count the number of objects in storage. """
+        objs = {}
+        if cls in classes.values() or cls in classes.keys():
+            objs = self.all(cls)
+        return len(objs)
+
     def new(self, obj):
         """add the object to the current database session"""
         self.__session.add(obj)
@@ -65,42 +81,12 @@ class DBStorage:
             self.__session.delete(obj)
 
     def reload(self):
-        """reloads data from the database"""
-        Base.metadata.create_all(self.__engine)
-        sess_factory = sessionmaker(bind=self.__engine, expire_on_commit=False)
-        Session = scoped_session(sess_factory)
-        self.__session = Session
+        """Reloads data from the databasei and initialize a new session."""
+        Base.metadata.create_all(bind=self.__engine)
+        Session = scoped_session(sessionmaker(bind=self.__engine,
+                                              expire_on_commit=False))
+        self.__session = Session()
 
     def close(self):
         """call remove() method on the private session attribute"""
-        self.__session.remove()
-
-    def get(self, cls, id):
-        """
-        Returns the object based on the class name and its ID, or
-        None if not found
-        """
-        if cls not in classes.values():
-            return None
-
-        all_cls = models.storage.all(cls)
-        for value in all_cls.values():
-            if (value.id == id):
-                return value
-
-        return None
-
-    def count(self, cls=None):
-        """
-        count the number of objects in storage
-        """
-        all_class = classes.values()
-
-        if not cls:
-            count = 0
-            for clas in all_class:
-                count += len(models.storage.all(clas).values())
-        else:
-            count = len(models.storage.all(cls).values())
-
-        return count
+        self.__session.close()
